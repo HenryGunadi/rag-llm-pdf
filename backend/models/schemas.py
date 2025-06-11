@@ -14,12 +14,10 @@ class DocumentSource(BaseModel):
     score: float
     metadata: Optional[Dict[str, Any]] = {}
 
-
 class ChatResponse(BaseModel):
     answer: str
     sources: List[DocumentSource]
     processing_time: float
-
 
 class DocumentInfo(BaseModel):
     filename: str
@@ -27,10 +25,8 @@ class DocumentInfo(BaseModel):
     chunks_count: int
     status: str
 
-
 class DocumentsResponse(BaseModel):
     documents: List[DocumentInfo]
-
 
 class UploadResponse(BaseModel):
     message: str
@@ -38,13 +34,11 @@ class UploadResponse(BaseModel):
     chunks_count: int
     processing_time: float
 
-
 class ChunkInfo(BaseModel):
     id: str
     content: str
     page: int
     metadata: Dict[str, Any]
-
 
 class ChunksResponse(BaseModel):
     chunks: List[ChunkInfo]
