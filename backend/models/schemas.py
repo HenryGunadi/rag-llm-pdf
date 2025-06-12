@@ -2,11 +2,9 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
 
-
 class ChatRequest(BaseModel):
     question: str
     chat_history: Optional[List[Dict[str, str]]] = []
-
 
 class DocumentSource(BaseModel):
     content: str
@@ -42,4 +40,10 @@ class ChunkInfo(BaseModel):
 
 class ChunksResponse(BaseModel):
     chunks: List[ChunkInfo]
-    total_count: int 
+    total_count: int
+
+class PDFLoadError(Exception):
+    pass
+
+class DBInitError(Exception):
+    pass
