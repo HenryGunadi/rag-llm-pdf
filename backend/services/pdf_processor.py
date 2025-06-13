@@ -8,9 +8,10 @@ from config import settings
 import logging
 from langchain_community.document_loaders import PyPDFLoader
 from models.schemas import PDFLoadError, DocumentSource, DocumentInfo
+from pathlib import Path
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
-
 
 class PDFProcessor:
     def __init__(self, file_path: str):
@@ -23,14 +24,19 @@ class PDFProcessor:
             is_separator_regex=False,
         )
 
-    def extract_text_from_pdf(self, file_path: str) -> List[Dict[str, Any]]:
+    def extract_text_from_pdf(self, file_path: str, user_id: str) -> List[Dict[str, Any]]:
         """Extract text from PDF and return page-wise content"""
         # TODO: Implement PDF text extraction
         # - Use pdfplumber or PyPDF2 to extract text from each page
         # - Return list of dictionaries with page content and metadata
         try:
             loader = PyPDFLoader(file_path=file_path, mode="page", extraction_mode="layout", extract_images=False)
-            return loader.load()
+            documents = loader.load()
+
+            for doc in documents:
+                doc.metadata["user_id"] = user_id
+                doc.metadata["filename"] = Path(file_path).name
+                doc.metadata["upload_date"] = datetime.now()
         except FileNotFoundError:
             raise PDFLoadError("PDF file not found")
         except Exception as e:
@@ -45,7 +51,6 @@ class PDFProcessor:
         return all_splits
         # - Return list of Document objects
         
-    
     def process_pdf(self, file_path: str) -> List[Document]:
         """Process PDF file and return list of Document objects"""
         # TODO: Implement complete PDF processing pipeline

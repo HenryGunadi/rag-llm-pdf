@@ -17,39 +17,36 @@ class RAGPipeline:
         self.client: Client = OpenAI(api_key=api_key)
         # - Prompt templates
         self.promp_templates = """
-        You are a helpful financial assistant. Use the following context to answer the question:
-
+        You are an assistant for question-answering tasks. "
+        "Use the following pieces of retrieved context to answer "
+        "the question. If you don't know the answer, say that you "
+        "don't know. Keep the "
+        "answer concise\n.
         Context:
-        {context}
+        {context}\n
 
         Question:
-        {question}
+        {question}\n
 
         Answer:
+        \n
         """
     
     def generate_answer(self, question: str, chat_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """Generate answer using RAG pipeline"""
+        try:
         # TODO: Implement RAG pipeline
-        # 1. Retrieve relevant documents
-        result = self.vector_store_service.similarity_search(query=question)
-        # 2. Generate context from retrieved documents
-        context = "\n".join(
-            f"[Page {doc.metadata.get('page', '?')}] {doc.page_content}"
-            for doc in result
-        )
-        self.promp_templates.format(context=context, question=question)
-        # 3. Generate answer using LLM
-        answer = self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": self.promp_templates},
-                {"role": "user", "content": question}
-            ]
-        )   
-        # 4. Return answer with sources
-        return {"answer": answer.choices[0].message.content, "source": []}
-        pass
+            # 1. Retrieve relevant documents
+            docs = self._retrieve_documents(query=question)
+            # 2. Generate context from retrieved documents
+            context = self._generate_context(documents=docs)
+            # 3. Generate answer using LLM
+            answer = self._generate_llm_response(question=question, context=context)
+
+            # 4. Return answer with sources
+            return {"answer": answer.choices[0].message.content, "source": [doc.metadata for doc in docs]}
+        except Exception as e:
+            raise e            
     
     def _retrieve_documents(self, query: str) -> List[Document]:
         """Retrieve relevant documents for the query"""
@@ -57,12 +54,20 @@ class RAGPipeline:
         # - Search vector store for similar documents
         # - Filter by similarity threshold
         # - Return top-k documents
-        pass
-    
+        try:
+            return self.vector_store_service.similarity_search(query=query, k=2)
+        except Exception as e:
+            raise e
+
     def _generate_context(self, documents: List[Document]) -> str:
         """Generate context from retrieved documents"""
         # TODO: Generate context string from documents
-        pass
+        context = "\n".join(
+            f"[Page {doc.metadata.get('page', '?')}] {doc.page_content}"
+            for doc in documents
+        )
+        
+        return context
     
     def _generate_llm_response(self, question: str, context: str, chat_history: List[Dict[str, str]] = None) -> str:
         """Generate response using LLM"""
@@ -70,4 +75,13 @@ class RAGPipeline:
         # - Create prompt with question and context
         # - Call LLM API
         # - Return generated response
-        pass 
+        self.promp_templates.format(context=context, question=question)
+        answer = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": self.promp_templates},
+                {"role": "user", "content": question}
+            ]
+        )
+
+        return answer  
