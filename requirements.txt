@@ -8,12 +8,12 @@ python-jose[cryptography]==3.3.0
 PyPDF2==3.0.1
 pdfplumber==0.10.0
 pymupdf==1.23.26  # fitz
-pypdf
+pypdf >=3.0.0
 
 # RAG 및 AI 관련
-langchain==0.1.0
-langchain-openai==0.0.2
-langchain-community==0.0.10
+langchain
+langchain-openai
+langchain-community
 openai>=1.14.2
 tiktoken==0.5.2
 
@@ -23,7 +23,7 @@ faiss-cpu==1.7.4
 
 # 임베딩 및 텍스트 처리
 sentence-transformers==2.2.2
-transformers==4.36.2
+transformers==4.30.2
 torch==2.1.2
 
 # 데이터 처리
@@ -50,3 +50,5 @@ httpx==0.25.2
 
 uuid
 filetype
+onnxruntime==1.17.1
+huggingface_hub==0.16.4

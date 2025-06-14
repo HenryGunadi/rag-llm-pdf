@@ -1,9 +1,9 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(..., max_length=500)
     chat_history: Optional[List[Dict[str, str]]] = []
 
 class DocumentSource(BaseModel):

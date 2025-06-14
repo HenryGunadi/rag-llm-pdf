@@ -16,8 +16,10 @@ def validate_file(file: IO) -> None:
         )
     
     detected_content_type = file_info.extension.lower()
+    print("Detect content type : ", detected_content_type)
+    print("File content type : ", file.content_type)
 
-    if (file.content_type not in accepted_file_types or detected_content_type not in accepted_file_types):
+    if (detected_content_type not in accepted_file_types):
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail="Unsupported file type",
@@ -28,3 +30,5 @@ def validate_file(file: IO) -> None:
         real_file_size += len(chunk)
         if real_file_size > FILE_SIZE:
             raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Too large")
+        
+    file.file.seek(0)

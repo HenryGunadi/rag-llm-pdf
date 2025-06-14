@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { pdfFileSchema } from "@/validators/validators";
+import { uploadRequest } from "@/services/upload";
+import { UploadPayload } from "@/types/types";
 
 interface FileUploadProps {
     onUploadComplete?: (result: any) => void;
@@ -14,6 +17,27 @@ export default function FileUpload({ onUploadComplete, onUploadError }: FileUplo
         // TODO: Implement file selection
         // 1. Validate file type (PDF only)
         // 2. Validate file size
+        const file = e.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        try {
+            const result = pdfFileSchema.safeParse(file);
+
+            if (!result.success) {
+                console.log("Error handling file selection");
+                setFile(null);
+                return;
+            }
+
+            setFile(file);
+        } catch (err) {
+            console.error("Error selecting file : ", err);
+            setFile(null);
+        }
+
         // 3. Set selected file
     };
 
@@ -23,7 +47,32 @@ export default function FileUpload({ onUploadComplete, onUploadError }: FileUplo
         // 2. Send POST request to /api/upload
         // 3. Handle upload progress
         // 4. Handle success/error responses
+        if (!file) {
+            return;
+        }
+
+        try {
+            const payload: UploadPayload = {
+                file: file,
+            };
+
+            setIsUploading(true);
+            const response = await uploadRequest(payload);
+            console.log("Upload response : ", response);
+            // setUploadProgress(1);
+        } catch (err) {
+            console.error("Error uploading file : ", err);
+            // setUploadProgress(0);
+        } finally {
+            setIsUploading(false);
+        }
     };
+
+    useEffect(() => {
+        if (file) {
+            console.log("File selected : ", file.name);
+        }
+    }, [file]);
 
     const handleDragOver = (e: React.DragEvent) => {
         // TODO: Handle drag over events
@@ -43,7 +92,7 @@ export default function FileUpload({ onUploadComplete, onUploadError }: FileUplo
             </div>
 
             {/* File input */}
-            <input type="file" accept=".pdf" onChange={handleFileSelect} style={{ display: "none" }} />
+            <input type="file" accept=".pdf" onChange={handleFileSelect} />
 
             {/* Upload button */}
             <button onClick={handleUpload} disabled={!file || isUploading}>

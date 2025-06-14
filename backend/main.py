@@ -11,6 +11,8 @@ import time
 import os
 from validators import validators
 from typing import List
+import onnxruntime
+print("DEVICE : ", onnxruntime.get_device())
 
 # Configure logging
 logging.basicConfig(level=settings.log_level)
@@ -33,10 +35,6 @@ app.add_middleware(
 
 # Initialize services
 # TODO: Initialize your services here
-pdf_processor = PDFProcessor("../data/sample.pdf")
-vector_store = VectorStoreService()
-rag_pipeline = RAGPipeline(api_key=settings.openai_api_key,
-                                vector_store_service=app.state.vector_store)
 
 @app.on_event("startup")
 async def startup_event():
@@ -45,25 +43,28 @@ async def startup_event():
     logger.info("Starting RAG Q&A System...")
 
     try:
-        app.state.pdf_processor = pdf_processor
-        app.state.vector_store = vector_store
-        app.state.rag_pipeline = rag_pipeline
+        app.state.pdf_processor = PDFProcessor("../data/sample.pdf")
+        app.state.vector_store = VectorStoreService()
+        app.state.rag_pipeline = RAGPipeline(
+            api_key=settings.openai_api_key,
+            vector_store_service=app.state.vector_store
+        )
 
         logger.info("All services initialized successfully.")
     except Exception as e:
-        logger.error("Error starting services")
+        logger.error("Error starting services : ", e)
 
 @app.get("/")
 async def root():
     """Health check endpoint"""
     return {"message": "RAG-based Financial Statement Q&A System is running"}
 
-
 @app.post("/api/upload")
 async def upload_pdf(request: Request, file: UploadFile = File(...)):
     """Upload and process PDF file"""
     # TODO: Implement PDF upload and processing
     try:
+        print(f"Received file: {file.filename}, type: {file.content_type}")
         start = time.time()
         # 1. Validate file type (PDF)
         validators.validate_file(file)
@@ -73,7 +74,7 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
         with open(upload_path, "wb") as f:
             while chunk := await file.read(1024): # 1 KB chunks
                 f.write(chunk)
-                chunk_count += len(chunk)
+                chunks_count += len(chunk)
 
         # 3. Process PDF and extract text
         pdf_processor: PDFProcessor = request.app.state.pdf_processor
@@ -91,17 +92,24 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
                               chunks_count=chunks_count,
                               processing_time=processing_time)
     except Exception as e:
-        raise e
+        print(f"Error processing PDF: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process PDF : {e}")
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
+async def chat(chat: ChatRequest, request: Request):
     """Process chat request and return AI response"""
     # TODO: Implement chat functionality
     # 1. Validate request
     # 2. Use RAG pipeline to generate answer
     # 3. Return response with sources
-    pass
-
+    try:
+        rag_pipeline: RAGPipeline = request.app.state.rag_pipeline
+        print("USER CHAT : ", chat.question)
+        answer = await rag_pipeline.generate_answer(question=chat.question)
+        
+        return ChatResponse(**answer)
+    except Exception as e:
+        logger.error(f"Error handling chat request : {e}")
 
 @app.get("/api/documents/{user_id}")
 async def get_documents(request: Request, user_id: str):

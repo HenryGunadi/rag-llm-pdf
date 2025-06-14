@@ -1,9 +1,11 @@
 import React from "react";
 import Head from "next/head";
+import FileUpload from "@/components/FileUpload";
+import ChatInterface from "@/components/ChatInterface";
 
 export default function Home() {
     return (
-        <div>
+        <div className="w-full h-full flex justify-center items-center">
             <Head>
                 <title>RAG-based Financial Q&A System</title>
                 <meta name="description" content="AI-powered Q&A system for financial documents" />
@@ -20,6 +22,8 @@ export default function Home() {
           - ChatInterface component for Q&A
           - DocumentViewer component for document display
         */}
+                <ChatInterface></ChatInterface>
+                <FileUpload></FileUpload>
 
                 <div>
                     <p>Welcome to the RAG-based Q&A System!</p>
