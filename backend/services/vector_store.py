@@ -1,4 +1,5 @@
 from typing import List, Tuple
+import asyncio
 from langchain.schema import Document
 from langchain.vectorstores import VectorStore
 from config import settings
@@ -6,12 +7,11 @@ import chromadb
 from chromadb import ClientAPI
 from chromadb.config import Settings
 from models.schemas import DBInitError
-from openai import Client
-from openai.types.embedding import Embedding
 from uuid import uuid4
 from sentence_transformers import SentenceTransformer
 from models.schemas import DocumentInfo, DocumentsResponse
 import logging
+from utils.scheduler import delete_user_file_later
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,8 @@ class VectorStoreService:
         self.collection = self.db.get_or_create_collection(name="chat_db")
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
-    def add_documents(self, documents: List[Document]) -> None:
+    # for demo purpose only, use dummy user id
+    def add_documents(self, documents: List[Document], user_id: int = 1) -> None:
         """Add documents to the vector store"""
         # TODO: Implement document addition to vector store
         # - Generate embeddings for documents
@@ -36,13 +37,19 @@ class VectorStoreService:
             embeddings = self.model.encode(all_chunks)
             embeddings = embeddings.tolist() # convert numpy arrays to lists
             print(f"Embeddings : {embeddings[0]}\n Type of embedding : {type(embeddings)}")
+            document_ids = [uuid4().hex[:8] for _ in range(len(all_chunks))] 
             # - Store documents with embeddings in vector database
             self.collection.add(
                 documents=all_chunks,
                 embeddings=embeddings,
                 metadatas=[{**doc.metadata, "status": "processed"} for doc in documents],
-                ids=[uuid4().hex[:8] for _ in range(len(all_chunks))],
+                ids=document_ids,
             )
+
+            asyncio.create_task(
+                delete_user_file_later(user_id=user_id, file_path="", document_ids=document_ids, callback=self.delete_documents)
+            )
+            
         except Exception as e:
             logger.error("Error adding documents to vector db : ", e)
             raise e
@@ -71,14 +78,19 @@ class VectorStoreService:
             logger.error(f"Error finding similarity search : {e}")
             raise e
         
-    def delete_documents(self, document_ids: List[str], user_id) -> None:
+    def delete_documents(self, document_ids: List[str], user_id: int) -> None:
         """Delete documents from vector store"""
         # TODO: Implement document deletion
         try:
-            self.collection.delete(ids=document_ids, where={"user_id": user_id})
+            if document_ids:
+                self.collection.delete(ids=document_ids)
+            elif user_id is not None:
+                self.collection.delete(where={"user_id": user_id})
+            else:
+                raise ValueError("Must provide either document_ids or user_id for deletion.")
         except Exception as e:
             raise e
-    
+
     def get_document_count(self, user_id: str) -> int:
         """Get total number of documents in vector store"""
         # TODO: Return document count

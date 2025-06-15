@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from models.schemas import ChatRequest, ChatResponse, DocumentsResponse, UploadResponse, DocumentInfo
@@ -11,8 +11,8 @@ import time
 import os
 from validators import validators
 from typing import List
-import onnxruntime
-print("DEVICE : ", onnxruntime.get_device())
+from utils.scheduler import delete_user_file_later
+import asyncio
 
 # Configure logging
 logging.basicConfig(level=settings.log_level)
@@ -60,7 +60,7 @@ async def root():
     return {"message": "RAG-based Financial Statement Q&A System is running"}
 
 @app.post("/api/upload")
-async def upload_pdf(request: Request, file: UploadFile = File(...)):
+async def upload_pdf(request: Request, user_id: int = Query(...), file: UploadFile = File(...)):
     """Upload and process PDF file"""
     # TODO: Implement PDF upload and processing
     try:
@@ -70,11 +70,15 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
         validators.validate_file(file)
         # 2. Save uploaded file
         chunks_count = 0
-        upload_path = os.path.join(settings.pdf_upload_path, file.filename)
+        upload_path = os.path.join(settings.pdf_upload_path, f"user_{user_id}_{file.filename}")
         with open(upload_path, "wb") as f:
             while chunk := await file.read(1024): # 1 KB chunks
                 f.write(chunk)
                 chunks_count += len(chunk)
+
+        asyncio.create_task(
+            delete_user_file_later(user_id=user_id, file_path=upload_path)
+        )
 
         # 3. Process PDF and extract text
         pdf_processor: PDFProcessor = request.app.state.pdf_processor
@@ -82,7 +86,7 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
         processed_docs = pdf_processor.process_pdf(file_path=upload_path)
 
         # 4. Store documents in vector database
-        vector_store.add_documents(processed_docs)
+        vector_store.add_documents(processed_docs, user_id)
 
         processing_time = time.time() - start
 
@@ -105,8 +109,8 @@ async def chat(chat: ChatRequest, request: Request):
     try:
         rag_pipeline: RAGPipeline = request.app.state.rag_pipeline
         print("USER CHAT : ", chat.question)
-        answer = await rag_pipeline.generate_answer(question=chat.question)
-        
+        answer = rag_pipeline.generate_answer(question=chat.question, chat_history=chat.chat_history)
+        print("RAG PIPELINE RESULT : ", answer)
         return ChatResponse(**answer)
     except Exception as e:
         logger.error(f"Error handling chat request : {e}")
@@ -156,6 +160,19 @@ async def get_chunks(request: Request):
     
     pass
 
+@app.delete("/api/cleanup")
+async def cleanup_user_data(request: Request, user_id: int = Query(...)):
+    vector_store: VectorStoreService = request.app.state.vector_store
+    
+    # Delete local files for this user
+    for file in os.listdir(settings.pdf_upload_path):
+        if f"user_{user_id}_" in file:
+            os.remove(os.path.join(settings.pdf_upload_path, file))
+    
+    # Delete from vector store
+    vector_store.delete_documents(document_ids=[], user_id=user_id)
+
+    return {"message": f"Cleaned up data for user {user_id}"}
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=settings.host, port=settings.port, reload=settings.debug) 

@@ -1,8 +1,8 @@
 import { string } from "zod";
-import { Message } from "@/components/ChatInterface";
 
 export type UploadPayload = {
     file: File;
+    user_id: number;
 };
 
 export interface SendMessage {
@@ -21,4 +21,19 @@ export interface MessageResponse {
     answer: string;
     sources: [DocumentSource];
     processing_time: number;
+}
+
+export interface UploadResponse {
+    message: string;
+    filename: string;
+    chunks_count: number;
+    processing_time: number;
+}
+
+export interface Message {
+    id: string;
+    type: "user" | "assistant";
+    content: string;
+    sources?: any[];
+    timestamp: Date;
 }

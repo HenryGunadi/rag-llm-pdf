@@ -1,4 +1,4 @@
-import { UploadPayload } from "@/types/types";
+import { UploadPayload, UploadResponse } from "@/types/types";
 import axios from "axios";
 import { error } from "console";
 
@@ -7,7 +7,7 @@ export async function uploadRequest(payload: UploadPayload) {
         const formData = new FormData();
         formData.append("file", payload.file);
         console.log("API URL : ", process.env.NEXT_PUBLIC_API_URL);
-        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, formData, {
+        const res = await axios.post<UploadResponse>(`${process.env.NEXT_PUBLIC_API_URL}/api/upload?user_id=${payload.user_id}`, formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
             },
