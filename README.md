@@ -1,4 +1,4 @@
-# RAG-based Financial Statement Q&A System Coding Challenge
+# RAG-based Financial Statement Q&A System
 ## Overview
 This project is a full-stack AI-powered application that allows users to ask natural language questions about financial statements (PDFs). The system retrieves relevant document chunks and uses a Large Language Model (LLM) to generate answers based on the retrieved context.
 
